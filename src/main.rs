@@ -236,14 +236,17 @@ fn main() {
     // NORMAL MODE (Click đúp)
     let task_name = "AutorunUnikeyRS";
     let check = Command::new("schtasks")
-        .args(&["/query", "/tn", task_name])
+        .args(&["/query", "/tn", task_name, "/v", "/fo", "csv"])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
         
-    let task_exists = check.map(|o| o.status.success()).unwrap_or(false);
+    let task_exists_and_valid = check.map(|o| {
+        let stdout = String::from_utf8_lossy(&o.stdout);
+        o.status.success() && stdout.contains("--silent-admin")
+    }).unwrap_or(false);
     
-    if task_exists {
-        // Task đã tồn tại -> Chỉ cần mượn Task Scheduler để chạy lại file này dưới quyền Admin (Bypass UAC)
+    if task_exists_and_valid {
+        // Task đã tồn tại VÀ đúng phiên bản -> Bypass UAC
         let _ = Command::new("schtasks")
             .args(&["/run", "/tn", task_name])
             .creation_flags(CREATE_NO_WINDOW)
