@@ -23,3 +23,6 @@ lto = true          # Link Time Optimization
 codegen-units = 1   # Reduce parallel code generation units to increase optimization
 strip = true        # Strip symbols from binary
 panic = "abort"     # Abort on panic instead of unwinding (saves space)
+
+[build-dependencies]
+winres = "0.1.12"

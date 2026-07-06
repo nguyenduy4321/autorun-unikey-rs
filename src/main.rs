@@ -3,6 +3,7 @@
 use std::env;
 use std::ffi::CStr;
 use std::os::windows::process::CommandExt;
+use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use winreg::enums::*;
@@ -151,7 +152,63 @@ fn setup_task_scheduler() {
     }
 }
 
+fn remove_ghost_layout() {
+    #[link(name = "user32")]
+    extern "system" {
+        fn LoadKeyboardLayoutA(pwszklid: *const u8, flags: u32) -> isize;
+        fn UnloadKeyboardLayout(hkl: isize) -> i32;
+    }
+
+    unsafe {
+        // 0000042A là mã của bàn phím tiếng Việt (Vietnamese)
+        // KLF_ACTIVATE = 1
+        let hkl = LoadKeyboardLayoutA(b"0000042A\0".as_ptr(), 1);
+        if hkl != 0 {
+            UnloadKeyboardLayout(hkl);
+        }
+    }
+}
+
+fn show_message(msg: &str, title: &str) {
+    let mut msg_w: Vec<u16> = std::ffi::OsStr::new(msg).encode_wide().collect();
+    msg_w.push(0);
+    let mut title_w: Vec<u16> = std::ffi::OsStr::new(title).encode_wide().collect();
+    title_w.push(0);
+    unsafe {
+        windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxW(
+            0,
+            msg_w.as_ptr(),
+            title_w.as_ptr(),
+            windows_sys::Win32::UI::WindowsAndMessaging::MB_OK | windows_sys::Win32::UI::WindowsAndMessaging::MB_ICONINFORMATION,
+        );
+    }
+}
+
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 {
+        let cmd = args[1].as_str();
+        match cmd {
+            "--uninstall" => {
+                let task_name = "AutorunUnikeyRS";
+                let _ = Command::new("schtasks")
+                    .args(&["/delete", "/tn", task_name, "/f"])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .status();
+                remove_unikey_autorun(); // Dọn dẹp luôn registry nếu còn sót
+                remove_old_shortcut();
+                show_message("Uninstall completed! All Autorun entries and Task Scheduler tasks have been removed.", "Autorun Unikey RS");
+                return;
+            }
+            "--test" => {
+                remove_ghost_layout();
+                show_message("Test executed! Ghost layout removal triggered.", "Autorun Unikey RS");
+                return;
+            }
+            _ => {}
+        }
+    }
+
     // 1. Turn off "Auto-run Unikey at boot time" of UnikeyNT natively via Registry
     remove_unikey_autorun();
 
@@ -177,20 +234,6 @@ fn main() {
         }
 
         // 4. Xóa lỗi bàn phím tiếng Việt (Ghost layout) bằng Win32 API gốc (siêu nhanh)
-        // Thay vì gọi Powershell chậm, ta dùng mẹo Load/Unload Keyboard Layout trực tiếp của Windows
-        #[link(name = "user32")]
-        extern "system" {
-            fn LoadKeyboardLayoutA(pwszklid: *const u8, flags: u32) -> isize;
-            fn UnloadKeyboardLayout(hkl: isize) -> i32;
-        }
-
-        unsafe {
-            // 0000042A là mã của bàn phím tiếng Việt (Vietnamese)
-            // KLF_ACTIVATE = 1
-            let hkl = LoadKeyboardLayoutA(b"0000042A\0".as_ptr(), 1);
-            if hkl != 0 {
-                UnloadKeyboardLayout(hkl);
-            }
-        }
+        remove_ghost_layout();
     }
 }
