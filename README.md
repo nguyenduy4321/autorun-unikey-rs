@@ -28,3 +28,7 @@ Then, run `autorun-unikey.exe` and watch the layout instantly disappear!
 cargo build --release
 ```
 The executable will be located in `target/release/autorun-unikey.exe`.
+
+## Next Steps
+
+- **Always run with Admin privileges without UAC popup**: Investigate methods like registering the executable as a Windows Service or using Windows Task Scheduler to run with highest privileges silently on startup.
