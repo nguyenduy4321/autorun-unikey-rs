@@ -83,7 +83,7 @@ fn remove_unikey_autorun() {
     }
 }
 
-fn create_shortcut_if_missing() {
+fn remove_old_shortcut() {
     if let Ok(appdata) = env::var("APPDATA") {
         let startup_folder =
             Path::new(&appdata).join("Microsoft\\Windows\\Start Menu\\Programs\\Startup");
@@ -95,25 +95,57 @@ fn create_shortcut_if_missing() {
             .to_string_lossy();
         let shortcut_path = startup_folder.join(format!("{}.lnk", shortcut_name));
 
-        if !shortcut_path.exists() {
-            let vbs_script = format!(
-                "Set oWS = WScript.CreateObject(\"WScript.Shell\")\r\n\
-                sLinkFile = \"{}\"\r\n\
-                Set oLink = oWS.CreateShortcut(sLinkFile)\r\n\
-                oLink.TargetPath = \"{}\"\r\n\
-                oLink.WindowStyle = \"7\"\r\n\
-                oLink.Save",
-                shortcut_path.display(),
-                current_exe.display()
-            );
+        if shortcut_path.exists() {
+            let _ = std::fs::remove_file(shortcut_path);
+        }
+    }
+}
 
-            let vbs_path = env::temp_dir().join("create_shortcut_unikey.vbs");
-            if std::fs::write(&vbs_path, vbs_script).is_ok() {
-                let _ = Command::new("cscript")
-                    .args(&["/nologo", vbs_path.to_str().unwrap()])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .status();
-                let _ = std::fs::remove_file(vbs_path);
+fn setup_task_scheduler() {
+    let current_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("autorun-unikey.exe"));
+    let task_name = "AutorunUnikeyRS";
+
+    let check = Command::new("schtasks")
+        .args(&["/query", "/tn", task_name])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+
+    let task_exists = if let Ok(output) = check {
+        output.status.success()
+    } else {
+        false
+    };
+
+    if !task_exists {
+        let create = Command::new("schtasks")
+            .args(&[
+                "/create",
+                "/tn", task_name,
+                "/tr", current_exe.to_str().unwrap(),
+                "/sc", "onlogon",
+                "/rl", "highest",
+                "/f"
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+
+        if let Ok(status) = create {
+            if !status.success() {
+                // If it fails (likely due to missing admin rights), elevate!
+                unsafe {
+                    let mut path_null = current_exe.to_string_lossy().into_owned();
+                    path_null.push('\0');
+                    windows_sys::Win32::UI::Shell::ShellExecuteA(
+                        0,
+                        b"runas\0".as_ptr(),
+                        path_null.as_ptr(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOW,
+                    );
+                }
+                // Exit current non-admin process
+                std::process::exit(0);
             }
         }
     }
@@ -123,8 +155,11 @@ fn main() {
     // 1. Turn off "Auto-run Unikey at boot time" of UnikeyNT natively via Registry
     remove_unikey_autorun();
 
-    // 2. Create shortcut of this script into startup folder
-    create_shortcut_if_missing();
+    // 2. Remove old startup shortcut if it exists
+    remove_old_shortcut();
+
+    // 3. Register as a Task Scheduler task to run as Admin without UAC silently
+    setup_task_scheduler();
 
     // 3. Start UnikeyNT
     let unikey_exe = "UnikeyNT.exe";
