@@ -17,6 +17,15 @@ A lightning-fast, ultra-lightweight Windows startup script for Unikey, written i
 3. Launches `UnikeyNT.exe` if it isn't running.
 4. Unloads the ghost Vietnamese keyboard layout using `LoadKeyboardLayoutA` & `UnloadKeyboardLayout`.
 
+## Usage
+
+> **[IMPORTANT]** You MUST place `autorun-unikey.exe` into the exact same folder as your `UniKeyNT.exe` before running it.
+
+1. Download `autorun-unikey.exe` from the Releases page.
+2. Place it in the folder where your `UniKeyNT.exe` is located.
+3. Run `autorun-unikey.exe` manually one time.
+4. (Optional) Windows will prompt you with a UAC window (Run as Administrator) to grant permission for the first-time setup.
+
 ## Interactive Demo Mode
 
 Want to see the magic in action? You can run the executable via command line (CMD or PowerShell) to trigger an interactive tutorial:

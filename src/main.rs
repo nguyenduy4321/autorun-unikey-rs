@@ -197,6 +197,11 @@ fn ensure_unikey_running() {
             let _ = Command::new(&unikey_path)
                 .current_dir(unikey_path.parent().unwrap())
                 .spawn();
+        } else {
+            show_message(
+                "Không tìm thấy UniKeyNT.exe!\n\nVui lòng đặt file autorun-unikey.exe vào CÙNG THƯ MỤC với UniKeyNT.exe trước khi chạy.\n\nCould not find UniKeyNT.exe! Please place autorun-unikey.exe in the SAME FOLDER as UniKeyNT.exe.", 
+                "Lỗi / Error"
+            );
         }
     }
 }
