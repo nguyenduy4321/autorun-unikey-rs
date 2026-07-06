@@ -17,10 +17,20 @@ A lightning-fast, ultra-lightweight Windows startup script for Unikey, written i
 3. Launches `UnikeyNT.exe` if it isn't running.
 4. Unloads the ghost Vietnamese keyboard layout using `LoadKeyboardLayoutA` & `UnloadKeyboardLayout`.
 
-## Testing the Layout Fix
+## Interactive Demo Mode
 
-You can run `add-vi-layout.cmd` to forcefully add the Vietnamese ghost layout to your Windows system. 
-Then, run `autorun-unikey.exe` and watch the layout instantly disappear!
+Want to see the magic in action? You can run the executable via command line (CMD or PowerShell) to trigger an interactive tutorial:
+```bash
+autorun-unikey.exe --demo-mode
+```
+This mode will step-by-step start Unikey, ask you to look at your taskbar, and then instantly obliterate the Vietnamese ghost layout before your eyes!
+
+## Uninstall
+
+To safely unregister the Task Scheduler and remove all traces, run:
+```bash
+autorun-unikey.exe --uninstall
+```
 
 ## Build from Source
 

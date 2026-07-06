@@ -184,6 +184,23 @@ fn show_message(msg: &str, title: &str) {
     }
 }
 
+fn ensure_unikey_running() {
+    let unikey_exe = "UnikeyNT.exe";
+    let is_running = unsafe { is_process_running(unikey_exe) };
+
+    if !is_running {
+        let mut unikey_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
+        unikey_path.pop();
+        unikey_path.push(unikey_exe);
+
+        if unikey_path.exists() {
+            let _ = Command::new(&unikey_path)
+                .current_dir(unikey_path.parent().unwrap())
+                .spawn();
+        }
+    }
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -195,14 +212,19 @@ fn main() {
                     .args(&["/delete", "/tn", task_name, "/f"])
                     .creation_flags(CREATE_NO_WINDOW)
                     .status();
-                remove_unikey_autorun(); // Dọn dẹp luôn registry nếu còn sót
+                remove_unikey_autorun();
                 remove_old_shortcut();
                 show_message("Uninstall completed! All Autorun entries and Task Scheduler tasks have been removed.", "Autorun Unikey RS");
                 return;
             }
-            "--test" => {
+            "--demo-mode" => {
+                show_message("Welcome to the Autorun-Unikey Interactive Demo!\n\nFirst, we will check and start UnikeyNT if it isn't running.", "Interactive Demo - Step 1/3");
+                ensure_unikey_running();
+                
+                show_message("Unikey is now running!\n\nPlease look at your taskbar language icon (or press Win + Space) to see if there is any unwanted 'VIE' layout.\n\nIn the next step, we will use Native Win32 APIs to instantly obliterate the Vietnamese 'ghost' layout bug. Ready?", "Interactive Demo - Step 2/3");
                 remove_ghost_layout();
-                show_message("Test executed! Ghost layout removal triggered.", "Autorun Unikey RS");
+
+                show_message("Boom! The ghost layout has been eradicated.\n\nYour Windows is now perfectly clean. Enjoy a bug-free typing experience!", "Interactive Demo - Step 3/3");
                 return;
             }
             _ => {}
@@ -218,22 +240,9 @@ fn main() {
     // 3. Register as a Task Scheduler task to run as Admin without UAC silently
     setup_task_scheduler();
 
-    // 3. Start UnikeyNT
-    let unikey_exe = "UnikeyNT.exe";
-    let is_running = unsafe { is_process_running(unikey_exe) };
+    // 4. Start UnikeyNT
+    ensure_unikey_running();
 
-    if !is_running {
-        let mut unikey_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
-        unikey_path.pop();
-        unikey_path.push(unikey_exe);
-
-        if unikey_path.exists() {
-            let _ = Command::new(&unikey_path)
-                .current_dir(unikey_path.parent().unwrap())
-                .spawn();
-        }
-
-        // 4. Xóa lỗi bàn phím tiếng Việt (Ghost layout) bằng Win32 API gốc (siêu nhanh)
-        remove_ghost_layout();
-    }
+    // 5. Xóa lỗi bàn phím tiếng Việt (Ghost layout) bằng Win32 API gốc (siêu nhanh)
+    remove_ghost_layout();
 }
