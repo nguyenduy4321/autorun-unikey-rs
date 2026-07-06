@@ -214,7 +214,10 @@ fn main() {
                     .status();
                 remove_unikey_autorun();
                 remove_old_shortcut();
-                show_message("Uninstall completed! All Autorun entries and Task Scheduler tasks have been removed.", "Autorun Unikey RS");
+                show_message(
+                    "Đã gỡ cài đặt thành công! Toàn bộ cấu hình khởi động cùng Windows và Task Scheduler đã được xóa sạch.\n\nUninstall completed! All Autorun entries and Task Scheduler tasks have been removed.", 
+                    "Gỡ cài đặt / Uninstall"
+                );
                 return;
             }
             "--demo-mode" => {
