@@ -218,13 +218,26 @@ fn main() {
                 return;
             }
             "--demo-mode" => {
-                show_message("Welcome to the Autorun-Unikey Interactive Demo!\n\nFirst, we will check and start UnikeyNT if it isn't running.", "Interactive Demo - Step 1/3");
-                ensure_unikey_running();
+                // Thêm layout để demo
+                #[link(name = "user32")]
+                extern "system" {
+                    fn LoadKeyboardLayoutA(pwszklid: *const u8, flags: u32) -> isize;
+                }
+                unsafe {
+                    LoadKeyboardLayoutA(b"0000042A\0".as_ptr(), 1);
+                }
+
+                show_message(
+                    "Bạn có đang bị dính bàn phím tiếng Việt (VIE) thừa thãi ở góc màn hình như thế này không?", 
+                    "Demo - Bước 1"
+                );
                 
-                show_message("Unikey is now running!\n\nPlease look at your taskbar language icon (or press Win + Space) to see if there is any unwanted 'VIE' layout.\n\nIn the next step, we will use Native Win32 APIs to instantly obliterate the Vietnamese 'ghost' layout bug. Ready?", "Interactive Demo - Step 2/3");
                 remove_ghost_layout();
 
-                show_message("Boom! The ghost layout has been eradicated.\n\nYour Windows is now perfectly clean. Enjoy a bug-free typing experience!", "Interactive Demo - Step 3/3");
+                show_message(
+                    "Đã xóa xong! Từ nay phần mềm sẽ tự động dọn dẹp lỗi này mỗi khi bạn khởi động máy.", 
+                    "Demo - Bước 2"
+                );
                 return;
             }
             _ => {}
