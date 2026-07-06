@@ -1,4 +1,4 @@
-# <img src="icon.png" width="48" align="center" alt="icon"> autorun-unikey-rs
+# <img src="icon_new.png" width="48" align="center" alt="icon"> autorun-unikey-rs
 
 A lightning-fast, ultra-lightweight Windows startup script for Unikey, written in pure Rust.
 
