@@ -228,15 +228,15 @@ fn main() {
                 }
 
                 show_message(
-                    "Bạn có đang bị dính bàn phím tiếng Việt (VIE) thừa thãi ở góc màn hình như thế này không?", 
-                    "Demo - Bước 1"
+                    "Bạn có đang bị dính bàn phím tiếng Việt (VIE) thừa thãi ở góc màn hình như thế này không?\n\nAre you experiencing this annoying, redundant Vietnamese (VIE) keyboard layout at the corner of your screen?", 
+                    "Demo - Bước 1 / Step 1"
                 );
                 
                 remove_ghost_layout();
 
                 show_message(
-                    "Đã xóa xong! Từ nay phần mềm sẽ tự động dọn dẹp lỗi này mỗi khi bạn khởi động máy.", 
-                    "Demo - Bước 2"
+                    "Đã xóa xong! Từ nay phần mềm sẽ tự động dọn dẹp lỗi này mỗi khi bạn khởi động máy.\n\nRemoved successfully! From now on, this software will automatically clean up this bug every time you start your computer.", 
+                    "Demo - Bước 2 / Step 2"
                 );
                 return;
             }
