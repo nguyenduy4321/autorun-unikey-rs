@@ -102,55 +102,7 @@ fn remove_old_shortcut() {
     }
 }
 
-fn setup_task_scheduler() {
-    let current_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("autorun-unikey.exe"));
-    let task_name = "AutorunUnikeyRS";
-
-    let check = Command::new("schtasks")
-        .args(&["/query", "/tn", task_name])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output();
-
-    let task_exists = if let Ok(output) = check {
-        output.status.success()
-    } else {
-        false
-    };
-
-    if !task_exists {
-        let create = Command::new("schtasks")
-            .args(&[
-                "/create",
-                "/tn", task_name,
-                "/tr", current_exe.to_str().unwrap(),
-                "/sc", "onlogon",
-                "/rl", "highest",
-                "/f"
-            ])
-            .creation_flags(CREATE_NO_WINDOW)
-            .status();
-
-        if let Ok(status) = create {
-            if !status.success() {
-                // If it fails (likely due to missing admin rights), elevate!
-                unsafe {
-                    let mut path_null = current_exe.to_string_lossy().into_owned();
-                    path_null.push('\0');
-                    windows_sys::Win32::UI::Shell::ShellExecuteA(
-                        0,
-                        b"runas\0".as_ptr(),
-                        path_null.as_ptr(),
-                        std::ptr::null(),
-                        std::ptr::null(),
-                        windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOW,
-                    );
-                }
-                // Exit current non-admin process
-                std::process::exit(0);
-            }
-        }
-    }
-}
+// (Removed setup_task_scheduler to inline its logic into main)
 
 fn remove_ghost_layout() {
     #[link(name = "user32")]
@@ -213,10 +165,31 @@ fn main() {
         match cmd {
             "--uninstall" => {
                 let task_name = "AutorunUnikeyRS";
-                let _ = Command::new("schtasks")
+                let status = Command::new("schtasks")
                     .args(&["/delete", "/tn", task_name, "/f"])
                     .creation_flags(CREATE_NO_WINDOW)
                     .status();
+                
+                if let Ok(s) = status {
+                    if !s.success() {
+                        // Cần quyền Admin để uninstall
+                        unsafe {
+                            let mut path_null = env::current_exe().unwrap().to_string_lossy().into_owned();
+                            path_null.push('\0');
+                            let mut args_null = String::from("--uninstall\0");
+                            windows_sys::Win32::UI::Shell::ShellExecuteA(
+                                0,
+                                b"runas\0".as_ptr(),
+                                path_null.as_ptr(),
+                                args_null.as_ptr(),
+                                std::ptr::null(),
+                                windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOW,
+                            );
+                        }
+                        return; // Thoát instance bình thường, instance admin sẽ chạy
+                    }
+                }
+
                 remove_unikey_autorun();
                 remove_old_shortcut();
                 show_message(
@@ -248,22 +221,78 @@ fn main() {
                 );
                 return;
             }
+            "--silent-admin" => {
+                // Instance này được gọi từ Task Scheduler (đã có quyền Admin)
+                remove_unikey_autorun();
+                remove_old_shortcut();
+                ensure_unikey_running();
+                remove_ghost_layout();
+                return;
+            }
             _ => {}
         }
     }
 
-    // 1. Turn off "Auto-run Unikey at boot time" of UnikeyNT natively via Registry
-    remove_unikey_autorun();
-
-    // 2. Remove old startup shortcut if it exists
-    remove_old_shortcut();
-
-    // 3. Register as a Task Scheduler task to run as Admin without UAC silently
-    setup_task_scheduler();
-
-    // 4. Start UnikeyNT
-    ensure_unikey_running();
-
-    // 5. Xóa lỗi bàn phím tiếng Việt (Ghost layout) bằng Win32 API gốc (siêu nhanh)
-    remove_ghost_layout();
+    // NORMAL MODE (Click đúp)
+    let task_name = "AutorunUnikeyRS";
+    let check = Command::new("schtasks")
+        .args(&["/query", "/tn", task_name])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+        
+    let task_exists = check.map(|o| o.status.success()).unwrap_or(false);
+    
+    if task_exists {
+        // Task đã tồn tại -> Chỉ cần mượn Task Scheduler để chạy lại file này dưới quyền Admin (Bypass UAC)
+        let _ = Command::new("schtasks")
+            .args(&["/run", "/tn", task_name])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+        
+        // Task Scheduler sẽ tự gọi `autorun-unikey.exe --silent-admin`. Ta chỉ việc thoát.
+        return;
+    } else {
+        // Lần đầu tiên chạy: Chưa có Task. Cần tạo mới.
+        let current_exe = env::current_exe().unwrap_or_else(|_| PathBuf::from("autorun-unikey.exe"));
+        // Thêm --silent-admin vào chuỗi thực thi của Task
+        let action = format!("\"{}\" --silent-admin", current_exe.to_str().unwrap());
+        
+        let create = Command::new("schtasks")
+            .args(&[
+                "/create",
+                "/tn", task_name,
+                "/tr", &action,
+                "/sc", "onlogon",
+                "/rl", "highest",
+                "/f"
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
+            
+        if let Ok(status) = create {
+            if !status.success() {
+                // Nếu tạo thất bại (do thiếu quyền), xin quyền Admin (chỉ xảy ra lần đầu)
+                unsafe {
+                    let mut path_null = current_exe.to_string_lossy().into_owned();
+                    path_null.push('\0');
+                    windows_sys::Win32::UI::Shell::ShellExecuteA(
+                        0,
+                        b"runas\0".as_ptr(),
+                        path_null.as_ptr(),
+                        std::ptr::null(),
+                        std::ptr::null(),
+                        windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOW,
+                    );
+                }
+                // Thoát tiến trình không có quyền, tiến trình Admin vừa được gọi sẽ làm nốt
+                return;
+            }
+        }
+        
+        // Nếu tạo thành công (đã có quyền admin), thực thi việc dọn dẹp cho phiên hiện tại
+        remove_unikey_autorun();
+        remove_old_shortcut();
+        ensure_unikey_running();
+        remove_ghost_layout();
+    }
 }
